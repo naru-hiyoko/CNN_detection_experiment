@@ -26,8 +26,8 @@ def debug_show(crop):
 
 def randomSample(image, mask, patchSize):
     height, width, c = image.shape
-    x = rand() * (width - patchSize)
-    y = rand() * (height - patchSize)
+    x = int(rand() * (width - patchSize))
+    y = int(rand() * (height - patchSize))
     crop = image[y:y+patchSize, x:x+patchSize, :]    
     area = np.zeros([height, width])
     area[y:y+patchSize, x:x+patchSize] = area[y:y+patchSize, x:x+patchSize] + 1
