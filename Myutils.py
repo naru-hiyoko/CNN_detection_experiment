@@ -98,9 +98,9 @@ def threshold(_in):
     for y in range(h):
         for x in range(w):
             if output[y, x] < thred:
-                output[y, x] = minval
+                output[y, x] = False
             else:
-                #output[y, x] = maxval
+                output[y, x] = True
                 pass
     return output
 
