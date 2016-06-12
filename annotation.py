@@ -7,6 +7,9 @@ from xml.dom import minidom
 import cv2
 import wx
 import uuid
+from skimage.transform import rotate, rescale
+from skimage.io import imsave
+import numpy as np
 
 DEBUG = True
 """ バウンディングボックス　が順番に格納"""
@@ -54,6 +57,8 @@ def on_openImage_button_clicked(event):
             result = []
             image_name_textBox.SetValue(filename)
             image = cv2.imread(filename)
+            image = rotate(image, -90) * 255.0
+            image = image.astype(np.uint8)
             if image.shape[0]*image.shape[1] > 1200*1200:
                 image = cv2.resize(image, (int(image.shape[1]*0.7), int(image.shape[0]*0.7)))
             cv2.imshow('viewer', image)
@@ -111,13 +116,13 @@ def on_write_button(event):
     root = Element('annotation')
     """保存先のディレクトリ"""
     prefix = '../data/'
-    dir_prefix = 'price'
+    #dir_prefix = 'price'
     try:
-        os.makedirs(os.path.join(prefix, 'Annotations', dir_prefix))
+        os.makedirs(os.path.join(prefix, 'Annotations'))
     except:
         pass
-    SubElement(root, 'folder').text = dir_prefix
-    SubElement(root, 'filename').text = '_'.join([dir_prefix, id])
+    #SubElement(root, 'folder').text = dir_prefix
+    #SubElement(root, 'filename').text = '_'.join([dir_prefix, id])
 
     _sizeNode = SubElement(root, 'size')
     SubElement(_sizeNode, 'width').text = str(image.shape[1])
@@ -136,15 +141,12 @@ def on_write_button(event):
             SubElement(bndbox_node, 'ymin').text = str(result[i][1])
             SubElement(bndbox_node, 'xmax').text = str(result[i][2])
             SubElement(bndbox_node, 'ymax').text = str(result[i][3])
-        
 
     data =  minidom.parseString(ElementTree.tostring(root, 'utf-8')).toprettyxml(indent = '   ')
     print data
-    f = open(os.path.join(prefix, 'Annotations', dir_prefix, '_'.join([dir_prefix, id+'.xml'])), 'w')
-    f.write(data)
-    f.close()
-    cv2.imwrite(os.path.join(prefix, 'Images', '_'.join([dir_prefix, id + '.JPEG'])),
-                source_image)
+    with open(os.path.join(prefix, 'Annotations',  str(id)+'.xml'), 'w') as f: 
+        f.write(data)
+        cv2.imwrite(os.path.join(prefix, 'Images',  str(id) + '.JPEG'), source_image)
 
 def on_undo(e):
     try:
@@ -199,7 +201,7 @@ if __name__ == '__main__':
     layoutC.Add(wx.StaticText(panel, -1, 'アノテーションラベルセット↓'))
     for i in range(max_item):
         layoutD = wx.BoxSizer(wx.HORIZONTAL)
-        obj_names.append(wx.TextCtrl(panel, wx.ID_ANY, 'price',size = (100,-1)))
+        obj_names.append(wx.TextCtrl(panel, wx.ID_ANY, 'tag',size = (100,-1)))
         layoutD.Add(wx.StaticText(panel, -1, str(i+1)+' : '))
         layoutD.Add(obj_names[i])
         layoutC.Add(layoutD)

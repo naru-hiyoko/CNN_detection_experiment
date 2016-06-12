@@ -12,6 +12,9 @@ import six
 import xml.etree.ElementTree as ET
 import logging
 from progressbar import ProgressBar
+from numpy.random import rand, sample
+from skimage.io import show, imshow
+
 
 
 def debug_show(crop):
@@ -20,32 +23,22 @@ def debug_show(crop):
     if q == ord('q'):
         sys.exit(0)
 
-def randomSample(image, foreGroundBB, patchSize, Foreground = False):
-    from numpy.random import rand, sample
-    height, width, c = image.shape
-    xmin, ymin, xmax, ymax = foreGroundBB
 
-    if not Foreground:
-        xm = int(rand() * xmin - patchSize)
-        xh = int(rand() * (width - xmax) + xmax - patchSize)
-        hm = int(rand() * ymin - patchSize)
-        hh = int(rand() * (height - ymax) + ymax - patchSize)
-        x = np.random.choice([xm, xh])
-        y = np.random.choice([hm, hh])
-        crop = image[y:y+patchSize, x:x+patchSize, :]
-        if (patchSize, patchSize, 3) ==  crop.shape:
-            return crop
-        else:
-            return None
+def randomSample(image, mask, patchSize):
+    height, width, c = image.shape
+    x = rand() * (width - patchSize)
+    y = rand() * (height - patchSize)
+    crop = image[y:y+patchSize, x:x+patchSize, :]    
+    area = np.zeros([height, width])
+    area[y:y+patchSize, x:x+patchSize] = area[y:y+patchSize, x:x+patchSize] + 1
+    area = area + mask
+    iou = np.float(len(np.where(area == 2)[0])) / (patchSize * patchSize)
+    if iou > 0.7:
+        return None
     else:
-        x = rand() * (xmax - xmin - patchSize) + xmin
-        y = rand() * (ymax - ymin - patchSize) + ymin
-        crop = image[y:y+patchSize, x:x+patchSize, :]
-        if (patchSize, patchSize, 3) ==  crop.shape:
-            return crop
-        else:
-            return None
-        
+        return crop
+    
+    
     
 """ 枚数の上限 """
 def fx(item_min, item_max) :
@@ -72,14 +65,7 @@ if __name__ == '__main__':
         negative = []
         time = time+1
         progress.update(time)
-        # DEBUG
-        if DEBUG:
-            if time == 2:
-                break
-            imagefile = 'price_26f23946-f3b7-439b-bde7-821c6d34a0d2.JPEG'
-
-        
-        annotation_file = os.path.join(annotation_dir, 'price', imagefile.split('.')[0] + '.xml')
+        annotation_file = os.path.join(annotation_dir,  imagefile.split('.')[0] + '.xml')
         try: 
             assert os.path.isfile(annotation_file) , '{} was not found.'.format(annotation_file)
         except:
@@ -89,6 +75,7 @@ if __name__ == '__main__':
         image = cv2.imread(os.path.join(image_dir, imagefile))
         """xmlからポジティブ領域を切り出しSelective-search の結果でポジティブサンプリング"""
         image_copy = image.copy()
+        mask = np.zeros([image.shape[0], image.shape[1]])
         root = ET.parse(annotation_file).getroot()
 
         """ 値札のBBを取得 """
@@ -104,33 +91,25 @@ if __name__ == '__main__':
             for bb in Detect(roi).detectRegion():
                 crop = bb.getRoi(roi)
                 if not crop is None:
-                    #debug_show(crop)
                     positive.append(cv2.resize(crop, output_size))
             """ 値札領域を黒塗り """
             image_copy[ymin:ymax, xmin:xmax, :] = 0
+            mask[ymin:ymax, xmin:xmax] = 1
 
         """ネガディブサンプリング"""
         for bb in Detect(image_copy).detectRegion():
             crop = bb.getRoi(image)
             if not crop is None:
-                #debug_show(crop)
                 negative.append(cv2.resize(crop, output_size))
 
 
-        """ サンプリングここまで & 背景からランダムで切り出し"""
-        for i in range(500):
-            crop = randomSample(image, (xmin, ymin, xmax, ymax), output_size[0], True)
+        """ 背景からランダムで切り出し """
+        for i in range(3000):
+            crop = randomSample(image, mask, output_size[0])
             if not crop is None:
-                debug_show(crop)
-                positive.append(crop)
-
-        
-        for i in range(2000):
-            crop = randomSample(image, (xmin, ymin, xmax, ymax), output_size[0])
-            if not crop is None:
-                debug_show(crop)
                 negative.append(crop)
-        
+
+        """ データセット """
         positive = random.sample(positive, fx(len(positive), 1000))
         negative = random.sample(negative, fx(len(negative), 3000))
         data = positive + negative
