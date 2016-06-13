@@ -15,7 +15,7 @@ import chainer.functions as F
 import chainer.links as L
 
 """ ネガポジデータ読み込み pos:1, neg:0 """
-def load_dataA():
+def load_data():
     prefix = '../data/pkl'
     data = []
     label = np.asarray([], dtype=np.uint8)
