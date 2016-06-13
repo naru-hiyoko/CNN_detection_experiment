@@ -6,16 +6,37 @@ from os.path import join
 from progressbar import ProgressBar, Percentage, Bar
 import logging
 
-
+import cPickle
 import chainer
 from chainer import Function, FunctionSet, Variable, optimizers, serializers, gradient_check, utils
 from chainer import Link, Chain, ChainList
 import chainer.functions as F
 import chainer.links as L
 
-import Myutils
+""" ネガポジデータ読み込み pos:1, neg:0 """
+def load_dataA():
+    prefix = '../data/pkl'
+    data = []
+    label = np.asarray([], dtype=np.uint8)
 
-train_data, train_labels = Myutils.load_dataA()
+    prog = ProgressBar()
+    prog.max_value = len(os.listdir(prefix)) - 1
+
+    t = 0
+    for file in os.listdir(prefix):
+        prog.update(t)
+        t = t+1
+        
+        if os.path.exists(join(prefix, file)) and '.pkl' in file:
+            with open(join(prefix, file), 'rb') as f:
+                data_dic = cPickle.load(f)
+                data.append(data_dic['data'])
+                label = np.append(label, data_dic['labels'])
+    data = np.vstack(data)
+    return data, label
+
+
+train_data, train_labels = load_data()
 train_labels = train_labels.astype(np.int32)
 
 """ network definition """
