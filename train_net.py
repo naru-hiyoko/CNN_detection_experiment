@@ -8,6 +8,7 @@ import logging
 
 import cPickle
 import chainer
+from chainer import cuda
 from chainer import Function, FunctionSet, Variable, optimizers, serializers, gradient_check, utils
 from chainer import Link, Chain, ChainList
 import chainer.functions as F
@@ -53,7 +54,7 @@ model = FunctionSet(
 )
 
 def forward(x_data, y_data, train=True):
-    x, t = Variable(x_data), chainer.Variable(y_data)
+    x, t = Variable(cuda.to_gpu(x_data)), chainer.Variable(cuda.to_gpu(y_data))
     
     h = model.conv1(x)
     h = model.norm1(h)
@@ -79,9 +80,10 @@ def forward(x_data, y_data, train=True):
     return F.softmax_cross_entropy(y, t), F.accuracy(y, t)
 
 """ training configuration """
-iteration = 30
+iteration = 50
 batchsize = 100
 N = train_data.shape[0]
+model.to_gpu()
 optim = optimizers.Adam()
 optim.setup(model)
 logging.basicConfig(filename='train.log', filemode='w', level=logging.DEBUG)
