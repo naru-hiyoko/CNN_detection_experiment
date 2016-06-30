@@ -7,7 +7,7 @@ import sys
 from os.path import join
 import threading
 from skimage.io import imshow, show, imread
-from skimage.transform import resize, rescale
+from skimage.transform import resize, rescale, rotate
 from scipy import ndimage as ndi
 from skimage.io import imshow, show
 import matplotlib.pyplot as plt
@@ -33,7 +33,7 @@ model = FunctionSet(
 )
 
 """ load trained model """
-serializers.load_npz('./trained_30.model', model)
+serializers.load_npz('/Volumes/export/experiment/cnn_segmentation/data/snapshot/trained_20.model', model)
 
 def forward_single(x_data, _size, train=False):
     datum = x_data[0].transpose([1, 2, 0]) / 255.0
@@ -69,7 +69,7 @@ def forward_single(x_data, _size, train=False):
 
 
 def forward_multi(x_data, _size, train=False):
-    scale = [0.7, 0.85, 1.00, 1.25, 1.5]
+    scale = [0.3, 0.5, 1.0]
     global_output = []
 
     #for s in scale:
@@ -114,7 +114,7 @@ def forward_multi(x_data, _size, train=False):
         th.start()
         threads.append(th)
 
-    for i in range(5):
+    for i in range(len(scale)):
         threads[i].join()
 
     
@@ -165,7 +165,7 @@ def detection(image, alpha, beta):
     c, h, w = _in.shape
     _in = _in.reshape([1, c, h, w])
     _size = (h, w)
-    outputA = forward_single(_in, _size)
+    outputA = forward_multi(_in, _size)
     outputA_cleaned = threshold(outputA, alpha)
     label_objects, nb_labels = ndi.label(outputA_cleaned)
     sizes = np.bincount(label_objects.ravel())
@@ -176,13 +176,17 @@ def detection(image, alpha, beta):
 
 if __name__ == '__main__':
     image = imread(sys.argv[1])
+    
+    image = rotate(image, -90, resize=True)
+    image = resize(image, (900, 600))
     figure = image.copy()
+    
     image = image.transpose([2, 0, 1]).astype(float32)
     c, h, w = image.shape
     image = image.reshape([1, c, h, w])
     _size = (h, w)
 
-    alpha = 0.9
+    alpha = 0.95
     beta = 0.9
 
     """ single scale """
@@ -202,4 +206,4 @@ if __name__ == '__main__':
     cleaned = mask_sizes[label_objects]
     
     """ result is shown """
-    draw_heatmap3(figure / 255.0, outputA, cleaned)    
+    draw_heatmap3(figure, outputA, cleaned)    
